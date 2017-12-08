@@ -1,68 +1,79 @@
 /**
- * Test injectors
+ * Test the request function
  */
 
-import { memoryHistory } from 'react-router-dom';
-import { put } from 'redux-saga/effects';
-import { shallow } from 'enzyme';
-import React from 'react';
+import request from '../request';
 
-import configureStore from '../../configureStore';
-import injectSaga from '../injectSaga';
-import * as sagaInjectors from '../sagaInjectors';
+describe('request', () => {
+    // Before each test, stub the fetch function
+    beforeEach(() => {
+        window.fetch = jest.fn();
+    });
 
-// Fixtures
-const Component = () => null;
+    describe('stubbing successful response', () => {
+        // Before each test, pretend we got a successful response
+        beforeEach(() => {
+            const res = new Response('{"hello":"world"}', {
+                status: 200,
+                headers: {
+                    'Content-type': 'application/json',
+                },
+            });
 
-function* testSaga() {
-  yield put({ type: 'TEST', payload: 'yup' });
-}
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
 
-describe('injectSaga decorator', () => {
-  let store;
-  let injectors;
-  let ComponentWithSaga;
+        it('should format the response correctly', (done) => {
+            request(`${process.env.API_URL}`)
+            .catch(done)
+            .then((json) => {
+                expect(json.hello).toBe('world');
+                done();
+            });
+        });
+    });
 
-  beforeAll(() => {
-    sagaInjectors.default = jest.fn().mockImplementation(() => injectors);
-  });
+    describe('stubbing 204 response', () => {
+        // Before each test, pretend we got a successful response
+        beforeEach(() => {
+            const res = new Response('', {
+                status: 204,
+                statusText: 'No Content',
+            });
 
-  beforeEach(() => {
-    store = configureStore({}, memoryHistory);
-    injectors = {
-      injectSaga: jest.fn(),
-      ejectSaga: jest.fn(),
-    };
-    ComponentWithSaga = injectSaga({ key: 'test', saga: testSaga, mode: 'testMode' })(Component);
-    sagaInjectors.default.mockClear();
-  });
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
 
-  it('should inject given saga, mode, and props', () => {
-    const props = { test: 'test' };
-    shallow(<ComponentWithSaga {...props} />, { context: { store } });
+        it('should return null on 204 response', (done) => {
+            request(`${process.env.API_URL}`)
+            .catch(done)
+            .then((json) => {
+                expect(json).toBeNull();
+                done();
+            });
+        });
+    });
 
-    expect(injectors.injectSaga).toHaveBeenCalledTimes(1);
-    expect(injectors.injectSaga).toHaveBeenCalledWith('test', { saga: testSaga, mode: 'testMode' }, props);
-  });
+    describe('stubbing error response', () => {
+        // Before each test, pretend we got an unsuccessful response
+        beforeEach(() => {
+            const res = new Response('{ status: 404 }', {
+                status: 404,
+                statusText: 'Not Found',
+                headers: {
+                    'Content-type': 'application/json',
+                },
+            });
 
-  it('should eject on unmount with a correct saga key', () => {
-    const props = { test: 'test' };
-    const renderedComponent = shallow(<ComponentWithSaga {...props} />, { context: { store } });
-    renderedComponent.unmount();
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
 
-    expect(injectors.ejectSaga).toHaveBeenCalledTimes(1);
-    expect(injectors.ejectSaga).toHaveBeenCalledWith('test');
-  });
-
-  it('should set a correct display name', () => {
-    expect(ComponentWithSaga.displayName).toBe('withSaga(Component)');
-    expect(injectSaga({ key: 'test', saga: testSaga })(() => null).displayName).toBe('withSaga(Component)');
-  });
-
-  it('should propagate props', () => {
-    const props = { testProp: 'test' };
-    const renderedComponent = shallow(<ComponentWithSaga {...props} />, { context: { store } });
-
-    expect(renderedComponent.prop('testProp')).toBe('test');
-  });
+        it('should catch errors', (done) => {
+            request('/playgood')
+            .catch(done)
+            .then((json) => {
+                expect(json).toBe(undefined);
+            });
+        });
+    });
 });

@@ -1,99 +1,79 @@
 /**
- * Test injectors
+ * Test the request function
  */
 
-import { memoryHistory } from 'react-router-dom';
-import { fromJS } from 'immutable';
-import identity from 'lodash/identity';
+import request from '../request';
 
-import configureStore from '../../configureStore';
-
-import getInjectors, {
-  injectReducerFactory,
-} from '../reducerInjectors';
-
-// Fixtures
-
-const initialState = fromJS({ reduced: 'soon' });
-
-const reducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'TEST':
-      return state.set('reduced', action.payload);
-    default:
-      return state;
-  }
-};
-
-describe('reducer injectors', () => {
-  let store;
-  let injectReducer;
-
-  describe('getInjectors', () => {
+describe('request', () => {
+    // Before each test, stub the fetch function
     beforeEach(() => {
-      store = configureStore({}, memoryHistory);
+        window.fetch = jest.fn();
     });
 
-    it('should return injectors', () => {
-      expect(getInjectors(store)).toEqual(expect.objectContaining({
-        injectReducer: expect.any(Function),
-      }));
+    describe('stubbing successful response', () => {
+        // Before each test, pretend we got a successful response
+        beforeEach(() => {
+            const res = new Response('{"hello":"world"}', {
+                status: 200,
+                headers: {
+                    'Content-type': 'application/json',
+                },
+            });
+
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
+
+        it('should format the response correctly', (done) => {
+            request(`${process.env.API_URL}`)
+            .catch(done)
+            .then((json) => {
+                expect(json.hello).toBe('world');
+                done();
+            });
+        });
     });
 
-    it('should throw if passed invalid store shape', () => {
-      Reflect.deleteProperty(store, 'dispatch');
+    describe('stubbing 204 response', () => {
+        // Before each test, pretend we got a successful response
+        beforeEach(() => {
+            const res = new Response('', {
+                status: 204,
+                statusText: 'No Content',
+            });
 
-      expect(() => getInjectors(store)).toThrow();
-    });
-  });
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
 
-  describe('injectReducer helper', () => {
-    beforeEach(() => {
-      store = configureStore({}, memoryHistory);
-      injectReducer = injectReducerFactory(store, true);
-    });
-
-    it('should check a store if the second argument is falsy', () => {
-      const inject = injectReducerFactory({});
-
-      expect(() => inject('test', reducer)).toThrow();
-    });
-
-    it('it should not check a store if the second argument is true', () => {
-      Reflect.deleteProperty(store, 'dispatch');
-
-      expect(() => injectReducer('test', reducer)).not.toThrow();
+        it('should return null on 204 response', (done) => {
+            request(`${process.env.API_URL}`)
+            .catch(done)
+            .then((json) => {
+                expect(json).toBeNull();
+                done();
+            });
+        });
     });
 
-    it('should validate a reducer and reducer\'s key', () => {
-      expect(() => injectReducer('', reducer)).toThrow();
-      expect(() => injectReducer(1, reducer)).toThrow();
-      expect(() => injectReducer(1, 1)).toThrow();
+    describe('stubbing error response', () => {
+        // Before each test, pretend we got an unsuccessful response
+        beforeEach(() => {
+            const res = new Response('{ status: 404 }', {
+                status: 404,
+                statusText: 'Not Found',
+                headers: {
+                    'Content-type': 'application/json',
+                },
+            });
+
+            window.fetch.mockReturnValue(Promise.resolve(res));
+        });
+
+        it('should catch errors', (done) => {
+            request('/playgood')
+            .catch(done)
+            .then((json) => {
+                expect(json).toBe(undefined);
+            });
+        });
     });
-
-    it('given a store, it should provide a function to inject a reducer', () => {
-      injectReducer('test', reducer);
-
-      const actual = store.getState().get('test');
-      const expected = initialState;
-
-      expect(actual.toJS()).toEqual(expected.toJS());
-    });
-
-    it('should not assign reducer if already existing', () => {
-      store.replaceReducer = jest.fn();
-      injectReducer('test', reducer);
-      injectReducer('test', reducer);
-
-      expect(store.replaceReducer).toHaveBeenCalledTimes(1);
-    });
-
-    it('should assign reducer if different implementation for hot reloading', () => {
-      store.replaceReducer = jest.fn();
-      injectReducer('test', reducer);
-      injectReducer('test', identity);
-
-      expect(store.replaceReducer).toHaveBeenCalledTimes(2);
-    });
-  });
 });
