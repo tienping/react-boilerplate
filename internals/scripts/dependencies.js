@@ -29,17 +29,17 @@ echo('Building the Webpack DLL...');
  * Create a manifest so npm install doesn't warn us
  */
 if (!exists(dllManifestPath)) {
-  writeFile(
-    dllManifestPath,
-    JSON.stringify(defaults({
-      name: 'react-boilerplate-dlls',
-      private: true,
-      author: pkg.author,
-      repository: pkg.repository,
-      version: pkg.version,
-    }), null, 2),
-    'utf8'
-  );
+    writeFile(
+        dllManifestPath,
+        JSON.stringify(defaults({
+            name: 'react-boilerplate-dlls',
+            private: true,
+            author: pkg.author,
+            repository: pkg.repository,
+            version: pkg.version,
+        }), null, 2),
+        'utf8'
+    );
 }
 
 // the BUILDING_DLL env var is set to avoid confusing the development environment
