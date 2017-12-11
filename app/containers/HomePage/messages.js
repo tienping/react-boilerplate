@@ -8,6 +8,6 @@ import { defineMessages } from 'react-intl';
 export default defineMessages({
     header: {
         id: 'app.components.HomePage.header',
-        defaultMessage: 'Hermint 2',
+        defaultMessage: 'HERMO 5.0',
     },
 });
